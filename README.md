@@ -6,7 +6,7 @@
 This template contains the react example as shown on [Figma Docs](https://www.figma.com/plugin-docs/intro/), with some structural changes and extra tooling.
 
 ## Quickstart
-* Run `yarn` to install dependencies.
+* Run `yarn install` to install dependencies.
 * Run `yarn build:watch` to start webpack in watch mode.
 * Open `Figma` -> `Plugins` -> `Development` -> `Import plugin from manifest...` and choose `manifest.json` file from this repo.
 
