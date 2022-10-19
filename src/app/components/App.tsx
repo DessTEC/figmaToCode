@@ -4,16 +4,10 @@ import '../styles/ui.css';
 declare function require(path: string): any;
 
 const App = ({}) => {
-    const textbox = React.useRef<HTMLInputElement>(undefined);
-
-    const countRef = React.useCallback((element: HTMLInputElement) => {
-        if (element) element.value = '5';
-        textbox.current = element;
-    }, []);
+    const [code, setCode] = React.useState('');
 
     const onCreate = () => {
-        const count = parseInt(textbox.current.value, 10);
-        parent.postMessage({pluginMessage: {type: 'create-rectangles', count}}, '*');
+        parent.postMessage({pluginMessage: {type: 'convertFlutter'}}, '*');
     };
 
     const onCancel = () => {
@@ -24,8 +18,8 @@ const App = ({}) => {
         // This is how we read messages sent from the plugin controller
         window.onmessage = (event) => {
             const {type, message} = event.data.pluginMessage;
-            if (type === 'create-rectangles') {
-                console.log(`Figma Says: ${message}`);
+            if (type === 'flutterCode') {
+                setCode(message);
             }
         };
     }, []);
@@ -33,14 +27,16 @@ const App = ({}) => {
     return (
         <div>
             <img src={require('../assets/logo.svg')} />
-            <h2>Rectangle Creator</h2>
-            <p>
-                Count: <input ref={countRef} />
-            </p>
+            <h2>Figma to Code</h2>
             <button id="create" onClick={onCreate}>
                 Create
             </button>
             <button onClick={onCancel}>Cancel</button>
+
+            <p>Code: </p>
+            <pre>
+                <code>{code}</code>
+            </pre>
         </div>
     );
 };
