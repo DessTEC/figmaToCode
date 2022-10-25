@@ -64,7 +64,7 @@ const App = ({}) => {
                 Item Two
             </TabPanel>
             <TabPanel value={value} index={2}>
-                Item Three
+                <Typography variant="p">Colors tab</Typography>
             </TabPanel>
         </Box>
     );
