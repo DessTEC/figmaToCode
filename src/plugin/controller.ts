@@ -1,6 +1,6 @@
 import {flutterWidgetGenerator} from '../plugin/flutter/flutterMain';
 
-figma.showUI(__html__, {width: 400});
+figma.showUI(__html__, {width: 500, height: 600});
 
 figma.ui.onmessage = (msg) => {
     if (msg.type === 'convertFlutter') {

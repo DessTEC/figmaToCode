@@ -3,6 +3,17 @@ body {
     text-align: center;
     margin: 20px;
 }
+
+.code-block {
+    display: flex;
+    flex-wrap: wrap;
+    height: fit-content;
+    max-width: 30rem;
+    background-color: black;
+    color: white;
+    text-align: left;
+}
+
 button {
     border-radius: 5px;
     background: white;

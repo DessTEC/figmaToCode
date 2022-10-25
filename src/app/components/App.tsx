@@ -1,10 +1,16 @@
 import * as React from 'react';
 import '../styles/ui.css';
 
-import Tabs from '@mui/material/Tabs';
-import Tab from '@mui/material/Tab';
-import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box';
+// ---- UI MATERIAL IMPORTS
+
+/* ----*/ import Tabs from '@mui/material/Tabs';
+/* ----*/ import Tab from '@mui/material/Tab';
+/* ----*/ import Typography from '@mui/material/Typography';
+/* ----*/ import Box from '@mui/material/Box';
+
+// ---- COMPONENT IMPORTS
+
+import TagTab from './Tags';
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -13,7 +19,6 @@ interface TabPanelProps {
 }
 
 declare function require(path: string): any;
-
 function TabPanel(props: TabPanelProps) {
     const {children, value, index, ...other} = props;
 
@@ -52,16 +57,18 @@ const App = ({}) => {
         <Box sx={{width: '100%'}}>
             <Box sx={{borderBottom: 1, borderColor: 'divider'}}>
                 <Tabs value={value} onChange={handleChange} aria-label="basic tabs example">
-                    <Tab label="Item One" {...a11yProps(0)} />
-                    <Tab label="Item Two" {...a11yProps(1)} />
-                    <Tab label="Item Three" {...a11yProps(2)} />
+                    <Tab label="Tags" {...a11yProps(0)} />
+                    <Tab label="Components" {...a11yProps(1)} />
+                    <Tab label="Colors" {...a11yProps(2)} />
                 </Tabs>
             </Box>
             <TabPanel value={value} index={0}>
-                Item One
+                <TagTab />
             </TabPanel>
             <TabPanel value={value} index={1}>
-                Item Two
+                <div className="code-block">
+                    <code>this is some code. Today we will see how to make code blabla</code>
+                </div>
             </TabPanel>
             <TabPanel value={value} index={2}>
                 <Typography variant="p">Colors tab</Typography>
