@@ -35,7 +35,7 @@ const App = ({}) => {
 
             <p>Code: </p>
             <pre>
-                <code>{code}</code>
+                <code className="language-dart">{code}</code>
             </pre>
         </div>
     );
