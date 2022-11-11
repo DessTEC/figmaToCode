@@ -28,26 +28,5 @@ export const makeTextComponent = (node: TextNode): string => {
 
     const properties = `\n"${charsWithLineBreak}",${textAlign}${style}`;
 
-    const textComp = `const Text(${indentString(properties)}\n),`;
-
-    return `FittedBox(\nfit: BoxFit.scaleDown,\nchild: ${textComp}\n),`;
-};
-
-export const flutterBorder = (node: any): string => {
-    if (node.type === 'GROUP' || !node.strokes || node.strokes.length === 0) {
-        return '';
-    }
-
-    // retrieve the stroke color, when existent (returns "" otherwise)
-
-    const colorFigma = clone(node.strokes[0].color);
-    colorFigma['a'] = node.strokes[0].opacity;
-
-    const propStrokeColor = figmaRGBToFlutterColor(colorFigma);
-
-    // only add strokeWidth when there is a strokeColor (returns "" otherwise)
-    const propStrokeWidth = `width: ${numToAutoFixed(node.strokeWeight)}, `;
-
-    // generate the border, when it should exist
-    return propStrokeColor && node.strokeWeight ? `\nborder: Border.all(${propStrokeColor} ${propStrokeWidth}),` : '';
+    return `const Text(${indentString(properties)}\n),`;
 };

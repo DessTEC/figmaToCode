@@ -2,12 +2,10 @@ import {
     indentString,
     figmaRGBToFlutterColor,
     clone,
-    numToAutoFixed,
     findNodeInChildren,
     getFlutterColor,
     widthScreen,
     getWidthRatioParent,
-    getVerticalSpacingScreen,
     getHeightRatioParent,
     getScreenParent,
     flutterBorder,
@@ -15,10 +13,14 @@ import {
     flutterBorderRadius,
     flutterPadding,
     heightScreen,
+    makeContainerWithStyle,
+    findNodeInSubtreeByType,
 } from './utils';
 import {flutterButton} from './flutterButton';
 import {makeTextComponent} from './flutterTextBuilder';
 import {flutterTextField} from './flutterTextField';
+import {flutterIcon} from './flutterIcon';
+import {flutterDropdown} from './flutterDropdown';
 
 export const flutterWidgetGenerator = (sceneNode: ReadonlyArray<SceneNode>): string => {
     let comp = '';
@@ -37,9 +39,9 @@ export const flutterWidgetGenerator = (sceneNode: ReadonlyArray<SceneNode>): str
             comp += flutterText(node);
             //This will build the interactive widgets
         } else if (node.type === 'INSTANCE') {
-            comp += flutterInteractiveComponent(node);
+            comp += flutterComponent(node);
         } else if (node.type === 'COMPONENT') {
-            comp += flutterInteractiveComponent(node);
+            comp += flutterComponent(node);
         }
 
         if (index < sceneLen - 1) {
@@ -58,6 +60,7 @@ export const flutterWidgetGenerator = (sceneNode: ReadonlyArray<SceneNode>): str
     return comp;
 };
 
+//Used for images and screen background
 const flutterContainer = (node: FrameNode | GroupNode | RectangleNode | EllipseNode, child: string): string => {
     if ('fills' in node && node.fills[0].type === 'IMAGE') {
         if (node.name.includes('SCREEN')) {
@@ -67,10 +70,13 @@ const flutterContainer = (node: FrameNode | GroupNode | RectangleNode | EllipseN
             return `Container(${indentString(decoration)}\nchild: ${child}\n);`;
         } else {
             const parentScreen = getScreenParent(node);
+            const shadow = flutterBoxShadow(node);
 
-            const image = `\nimage: AssetImage("assets/softtek.png")`;
-            const decorationImage = `\nimage: DecorationImage(${indentString(image)},\nfit: BoxFit.fill,\n)`;
-            const decoration = `\ndecoration: const BoxDecoration(${indentString(decorationImage)}\n),`;
+            const image = `\nimage: AssetImage("assets/${node.name}.png")`;
+            const decorationImage = `\nimage: DecorationImage(${indentString(image)},\nfit: BoxFit.fill,\n),`;
+            const decoration = `\ndecoration: const BoxDecoration(${indentString(decorationImage)}\n${indentString(
+                shadow
+            )}\n),`;
             return `Container(\nwidth: ${getWidthRatioParent(node, parentScreen)},\nheight: ${getHeightRatioParent(
                 node,
                 parentScreen
@@ -79,7 +85,7 @@ const flutterContainer = (node: FrameNode | GroupNode | RectangleNode | EllipseN
     }
 
     //Define container for more shapes
-    return `Container(\nchild: ${child}\n);`;
+    return makeContainerWithStyle(node, child);
 };
 
 const flutterContainerDecoration = (node: any): string => {
@@ -112,15 +118,19 @@ const flutterContainerDecoration = (node: any): string => {
     return `\ndecoration: BoxDecoration(${background}${border}${borderRadius}${shadow}\n),`;
 };
 
-const flutterInteractiveComponent = (node: InstanceNode | ComponentNode): string => {
+const flutterComponent = (node: InstanceNode | ComponentNode): string => {
     const nodeName = node.name;
 
     if (nodeName.includes('Input')) {
         return flutterTextField(node);
     } else if (nodeName.includes('Button')) {
         return flutterButton(node);
+    } else if (nodeName.includes('Icon')) {
+        return flutterIcon(node);
+    } else if (nodeName.includes('Dropdown')) {
+        return flutterDropdown(node);
     } else {
-        return '';
+        return flutterFrame(node);
     }
 };
 
@@ -128,9 +138,11 @@ const flutterFloatingActionButton = (sceneNode: ReadonlyArray<SceneNode>): strin
     let floatingActionButton = '';
 
     sceneNode.forEach((node) => {
-        if (node.name === 'Floating button') {
-            const circle = findNodeInChildren(node, 'ELLIPSE');
-            const icon = findNodeInChildren(node, 'VECTOR');
+        if (node.name.includes('Floating button')) {
+            const circle = findNodeInSubtreeByType(node, 'ELLIPSE');
+            const icon = findNodeInSubtreeByType(node, 'VECTOR');
+
+            //Change this way of generation icon
             const iconResource = `\nchild: const Icon(Icons.${icon.name}),`;
             const onPressed = '\nonPressed: (){},';
             const color = getFlutterColor(circle.fills[0]);
@@ -162,7 +174,7 @@ const flutterFloatingActionButton = (sceneNode: ReadonlyArray<SceneNode>): strin
     return floatingActionButton;
 };
 
-const flutterFrame = (node: FrameNode): string => {
+const flutterFrame = (node: any): string => {
     // -------- SCREENS ----------------------------
     if (node.name.includes('SCREEN')) {
         //Convert readonly array to regular array
@@ -176,13 +188,17 @@ const flutterFrame = (node: FrameNode): string => {
         //Manage screens with image or color backgrounds
         if (node.backgrounds.length > 0) {
             const background: any = node.backgrounds[0];
-            const safeArea = `SafeArea(\nchild: Container(\nwidth: ${widthScreen},\nchild: Column(\nchildren: <Widget>[\n${indentString(
+            const padding = flutterPadding(node);
+            const safeArea = `SafeArea(\nchild: Container(\nwidth: ${widthScreen},\nheight: ${heightScreen},${padding}\nchild: Column(\nchildren: <Widget>[\n${indentString(
                 children,
                 1
             )}\n]\n)\n)\n)`;
+
+            const listView = `ListView(\nchildren: <Widget>[\n${safeArea}\n]\n)`;
+
             switch (background.type) {
                 case 'IMAGE': {
-                    const scaffold = `Scaffold(\nbackgroundColor: Colors.transparent,${floatingActionButton}\nbody: ${safeArea}\n)`;
+                    const scaffold = `Scaffold(\nbackgroundColor: Colors.transparent,${floatingActionButton}\nbody: ${listView}\n)`;
                     return flutterContainer(node, scaffold);
                 }
                 default: {
@@ -190,7 +206,7 @@ const flutterFrame = (node: FrameNode): string => {
                     colorFigma['a'] = background.opacity;
 
                     const hexColor = figmaRGBToFlutterColor(colorFigma);
-                    return `Scaffold(\nbackgroundColor: Color(${hexColor}),${floatingActionButton}\nbody: ${safeArea}\n);`;
+                    return `Scaffold(\nbackgroundColor: Color(${hexColor}),${floatingActionButton}\nbody: ${listView}\n);`;
                 }
             }
         } else {
@@ -276,9 +292,13 @@ export const getLayoutComponent = (
     const decoration = flutterContainerDecoration(node);
     const padding = flutterPadding(node);
 
+    console.log(widthMode);
+    console.log(heightMode);
+    console.log(layoutMode);
+
     //LAYOUTS INDEPENDENT OF LAYOUTMODE
     if (widthMode === 'WRAP_CONTENT' && heightMode === 'WRAP_CONTENT') {
-        return `Container(${padding}${decoration}\nchild: \n${makeRowOrColumn(node, children)}\n),`;
+        return `Container(${padding}${decoration}\nchild: ${makeRowOrColumn(node, children)}\n),`;
     } else if (widthMode === 'FIXED' && heightMode === 'FIXED') {
         return `Container(${padding}${decoration}\nwidth: ${getWidthRatioParent(
             node,
@@ -293,71 +313,71 @@ export const getLayoutComponent = (
         return `Container(${padding}${decoration}\nwidth: ${getWidthRatioParent(
             node,
             parentScreen
-        )},\nchild: \n${makeRowOrColumn(node, children)}\n),`;
+        )},\nchild: ${makeRowOrColumn(node, children)}\n),`;
     }
 
     //VERTICAL LAYOUT
     if (layoutMode === 'VERTICAL') {
         if (widthMode === 'MATCH_PARENT' && heightMode === 'WRAP_CONTENT') {
-            return `Container(${padding}${decoration}\nwidth: double.infinity,\nchild: \n${makeRowOrColumn(
+            return `Container(${padding}${decoration}\nwidth: double.infinity,\nchild: ${makeRowOrColumn(
                 node,
                 children
             )}\n),`;
         } else if (widthMode === 'WRAP_CONTENT' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}${decoration}\nchild: \n${makeRowOrColumn(
+            return `Expanded(\nchild: Container(${padding}${decoration}\nchild: ${makeRowOrColumn(
                 node,
                 children
-            )})\n),`;
+            )}\n)\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}${decoration}\nwidth: double.infinity,\nchild: \n${makeRowOrColumn(
+            return `Expanded(\nchild: Container(${padding}${decoration}\nwidth: double.infinity,\nchild: ${makeRowOrColumn(
                 node,
                 children
-            )})\n),`;
+            )}\n)\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'FIXED') {
             return `Container(${padding}${decoration}\nwidth: double.infinity,\nheight: ${getHeightRatioParent(
                 node,
                 parentScreen
-            )},\nchild: \n${makeRowOrColumn(node, children)}\n),`;
+            )},\nchild: ${makeRowOrColumn(node, children)}\n),`;
         } else if (widthMode === 'FIXED' && heightMode === 'MATCH_PARENT') {
             return `Expanded(\nchild: Container(${padding}${decoration}\nwidth: ${getWidthRatioParent(
                 node,
                 parentScreen
-            )},\nchild: \n${makeRowOrColumn(node, children)})\n),`;
+            )},\nchild: ${makeRowOrColumn(node, children)}\n)\n),`;
         }
     } else {
         //HORIZONTAL LAYOUT
         if (widthMode === 'WRAP_CONTENT' && heightMode === 'MATCH_PARENT') {
-            return `Container(${padding}${decoration}\nheight: double.infinity,\nchild: \n${makeRowOrColumn(
+            return `Container(${padding}${decoration}\nheight: double.infinity,\nchild: ${makeRowOrColumn(
                 node,
                 children
             )}\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'WRAP_CONTENT') {
-            return `Expanded(\nchild: Container(${padding}${decoration}\nchild: \n${makeRowOrColumn(
+            return `Expanded(\nchild: Container(${padding}${decoration}\nchild: ${makeRowOrColumn(
                 node,
                 children
-            )})\n),`;
+            )}\n)\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}${decoration}\nheight: double.infinity,\nchild: \n${makeRowOrColumn(
+            return `Expanded(\nchild: Container(${padding}${decoration}\nheight: double.infinity,\nchild: ${makeRowOrColumn(
                 node,
                 children
-            )})\n),`;
+            )}\n)\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'FIXED') {
             return `Expanded(\nchild: Container(${padding}${decoration}\nheight: ${getHeightRatioParent(
                 node,
                 parentScreen
-            )},\nchild: \n${makeRowOrColumn(node, children)})\n),`;
+            )},\nchild: ${makeRowOrColumn(node, children)}\n)\n),`;
         } else if (widthMode === 'FIXED' && heightMode === 'MATCH_PARENT') {
             return `Container(${padding}${decoration}\nheight: double.infinity, \nwidth: ${getWidthRatioParent(
                 node,
                 parentScreen
-            )},\nchild: \n${makeRowOrColumn(node, children)}\n),`;
+            )},\nchild: ${makeRowOrColumn(node, children)}\n),`;
         }
     }
 
     return comp;
 };
 
-const makeRowOrColumn = (node: FrameNode | InstanceNode | ComponentNode, children: string): string => {
+export const makeRowOrColumn = (node: FrameNode | InstanceNode | ComponentNode, children: string): string => {
     // ROW or COLUMN
     const rowOrColumn = node.layoutMode === 'HORIZONTAL' ? 'Row' : 'Column';
 
@@ -395,9 +415,9 @@ const makeRowOrColumn = (node: FrameNode | InstanceNode | ComponentNode, childre
     let mainAxisSize;
     // The primaryAxisSizingMode is changed in figma with Vertical resizing configs
     if (node.primaryAxisSizingMode === 'AUTO') {
-        mainAxisSize = '\nmainAxisSize: MainAxisSize.max,';
-    } else {
         mainAxisSize = '\nmainAxisSize: MainAxisSize.min,';
+    } else {
+        mainAxisSize = '\nmainAxisSize: MainAxisSize.max,';
     }
 
     const properties =
@@ -410,14 +430,19 @@ const makeRowOrColumn = (node: FrameNode | InstanceNode | ComponentNode, childre
 };
 
 const flutterText = (node: TextNode): string => {
-    return makeTextComponent(node);
+    const textComp = makeTextComponent(node);
+    return `FittedBox(\nfit: BoxFit.scaleDown,\nchild: ${textComp}\n),`;
 };
 
 // Aplicable for auto layout frames
 const addSpacingIfNeeded = (node: SceneNode): string => {
     const parentScreen = getScreenParent(node);
 
-    if (node.parent?.type === 'FRAME' && node.parent.layoutMode !== 'NONE') {
+    if (
+        node.parent?.type === 'FRAME' ||
+        node.parent?.type === 'COMPONENT' ||
+        (node.parent?.type === 'INSTANCE' && node.parent.layoutMode !== 'NONE')
+    ) {
         // check if itemSpacing is set and if it isn't the last value.
         // Don't add the SizedBox at last value. In Figma, itemSpacing CAN be negative; here it can't.
         if (node.parent.itemSpacing > 0) {

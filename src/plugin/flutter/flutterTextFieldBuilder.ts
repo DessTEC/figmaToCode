@@ -1,13 +1,4 @@
-import {
-    clone,
-    figmaRGBToFlutterColor,
-    flutterBorderRadius,
-    flutterBorderSide,
-    getFlutterColor,
-    getTextStyle,
-    indentString,
-    numToAutoFixed,
-} from './utils';
+import {flutterBorderRadius, flutterBorderSide, getFlutterColor, getTextStyle, indentString} from './utils';
 
 export const makeTextStyleComponent = (node: TextNode): string => {
     const textStyle = getTextStyle(node);

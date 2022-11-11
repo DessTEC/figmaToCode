@@ -149,7 +149,7 @@ export const flutterBorderSide = (node: any): string => {
 
     // retrieve the stroke color, when existent (returns "" otherwise)
 
-    const propStrokeColor = getFlutterColor(node.fills[0]);
+    const propStrokeColor = getFlutterColor(node.strokes[0]);
 
     // only add strokeWidth when there is a strokeColor (returns "" otherwise)
     const propStrokeWidth = `width: ${numToAutoFixed(node.strokeWeight)}, `;
@@ -167,7 +167,7 @@ export const flutterSide = (node: any): string => {
 
     // retrieve the stroke color, when existent (returns "" otherwise)
 
-    const propStrokeColor = getFlutterColor(node.fills[0]);
+    const propStrokeColor = getFlutterColor(node.strokes[0]);
 
     // only add strokeWidth when there is a strokeColor (returns "" otherwise)
     const propStrokeWidth = `width: ${numToAutoFixed(node.strokeWeight)}, `;
@@ -198,7 +198,7 @@ export const flutterBorder = (node: any): string => {
     if (!node.strokes || node.strokes.length === 0) {
         return '';
     }
-    const propStrokeColor = getFlutterColor(node.fills[0]);
+    const propStrokeColor = getFlutterColor(node.strokes[0]);
 
     const borderLeft = `\nleft: BorderSide(\ncolor: Color(${propStrokeColor}),\nwidth: ${numToAutoFixed(
         node.strokeLeftWeight
@@ -249,6 +249,15 @@ export const flutterPadding = (node: any): string => {
     const paddingBottom = node.paddingBottom;
     const paddingTop = node.paddingTop;
 
+    if (
+        paddingLeft === undefined &&
+        paddingRight === undefined &&
+        paddingBottom === undefined &&
+        paddingTop === undefined
+    ) {
+        return '';
+    }
+
     if (paddingLeft === 0 && paddingRight === 0 && paddingBottom === 0 && paddingTop === 0) {
         return '';
     }
@@ -298,22 +307,22 @@ export const wrapInteractiveComponent = (
 
     //LAYOUTS INDEPENDENT OF LAYOUTMODE
     if (widthMode === 'WRAP_CONTENT' && heightMode === 'WRAP_CONTENT') {
-        return `Container(${padding}\nchild: \n${interactiveComponent}\n),`;
+        return `Container(${padding}\nchild: ${interactiveComponent}\n),`;
     } else if (widthMode === 'FIXED' && heightMode === 'FIXED') {
         return `Container(${padding}\nwidth: ${getWidthRatioParent(
             node,
             parentScreen
-        )},\nheight: ${getHeightRatioParent(node, parentScreen)},\nchild: \n${interactiveComponent}\n),`;
+        )},\nheight: ${getHeightRatioParent(node, parentScreen)},\nchild: ${interactiveComponent}\n),`;
     } else if (widthMode === 'WRAP_CONTENT' && heightMode === 'FIXED') {
         return `Container(${padding}\nheight: ${getHeightRatioParent(
             node,
             parentScreen
-        )},\nchild: \n${interactiveComponent}\n),`;
+        )},\nchild: ${interactiveComponent}\n),`;
     } else if (widthMode === 'FIXED' && heightMode === 'WRAP_CONTENT') {
         return `Container(${padding}\nwidth: ${getWidthRatioParent(
             node,
             parentScreen
-        )},\nchild: \n${interactiveComponent}\n),`;
+        )},\nchild: ${interactiveComponent}\n),`;
     }
 
     //VERTICAL LAYOUT
@@ -357,4 +366,70 @@ export const wrapInteractiveComponent = (
     }
 
     return comp;
+};
+
+export const alignmentWidget = (node: any, child: string): string => {
+    let crossAlignType;
+    switch (node.counterAxisAlignItems) {
+        case 'MIN':
+            crossAlignType = -1.0;
+            break;
+        case 'CENTER':
+            crossAlignType = 0.0;
+            break;
+        case 'MAX':
+            crossAlignType = 1.0;
+            break;
+    }
+
+    let mainAlignType;
+    switch (node.primaryAxisAlignItems) {
+        case 'MIN':
+            mainAlignType = -1.0;
+            break;
+        case 'CENTER':
+            mainAlignType = 0.0;
+            break;
+        case 'MAX':
+            mainAlignType = 1.0;
+            break;
+        case 'SPACE_BETWEEN':
+            mainAlignType = 0.0;
+            break;
+    }
+
+    const rowOrColumn = node.layoutMode === 'HORIZONTAL' ? 'Row' : 'Column';
+
+    if (rowOrColumn === 'Row') {
+        return `Align(\nalignment: Alignment(${mainAlignType}, ${crossAlignType}),\nchild: ${child}\n),`;
+    } else {
+        return `Align(\nalignment: Alignment(${crossAlignType}, ${mainAlignType}),\nchild: ${child}\n),`;
+    }
+};
+
+export const makeContainerWithStyle = (node: any, child: string): string => {
+    let backgroundColor = '';
+    if (node.fills !== null && node.fills.length > 0) {
+        backgroundColor = `\ncolor: Color(${getFlutterColor(node.fills[0])}),`;
+    }
+
+    const borderRadius = flutterBorderRadius(node);
+    const border = flutterBorder(node);
+    const shadow = flutterBoxShadow(node);
+    const padding = flutterPadding(node);
+    const propShape = node.type === 'ELLIPSE' ? '\nshape: BoxShape.circle,' : '';
+
+    const propertiesContainer = padding;
+    const propertiesDecoration = backgroundColor + borderRadius + border + propShape + shadow;
+
+    if (child !== null && child != '') {
+        return `Container(${propertiesContainer}\ndecoration: BoxDecoration(${propertiesDecoration}\n),\nchild: ${child}\n),`;
+    } else {
+        // When container does not have child, add a fixed size
+        const parentScreen = getScreenParent(node);
+        return `Container(\nwidth: ${getWidthRatioParent(node, parentScreen)},\nheight: ${getHeightRatioParent(
+            node,
+            parentScreen
+        )},${propertiesContainer}\ndecoration: BoxDecoration(${propertiesDecoration}\n)\n),`;
+    }
 };
