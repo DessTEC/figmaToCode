@@ -3,12 +3,13 @@ import {
     findNodeInSubtreeByType,
     flutterBorderRadius,
     flutterBoxShadow,
+    flutterPadding,
     getScreenParent,
     widthScreen,
     wrapInteractiveComponent,
 } from './utils';
 import {makeTextStyleComponent} from './flutterTextFieldBuilder';
-import {makeElevatedButtonStyleComponent, makeIconButtonStyleComponent} from './flutterButtonBuilder';
+import {makeElevatedButtonStyleComponent, makeIconButtonStyleWrapper} from './flutterButtonBuilder';
 import {getLayoutType, makeRowOrColumn} from './flutterMain';
 import {flutterIcon} from './flutterIcon';
 
@@ -22,7 +23,7 @@ export const flutterButton = (node: InstanceNode | ComponentNode): string => {
     let children = '';
     if (textNode !== null && textNode.visible) {
         const textStyle = makeTextStyleComponent(textNode);
-        children = `Text(\n"${textNode.characters}",\noverflow: TextOverflow.clip,\nsoftWrap: false,${textStyle}\n),`;
+        children = `Text(\nr"${textNode.characters}",\noverflow: TextOverflow.clip,\nsoftWrap: false,${textStyle}\n),`;
 
         if (icon !== '') {
             //Button with text and icon --------------------
@@ -57,14 +58,17 @@ export const flutterButton = (node: InstanceNode | ComponentNode): string => {
         children = `\nchild: ${children}`;
     }
 
+    //TODO: Icon button does not support background color
     let buttonStyle = '';
-    if (typeButton === 'icon') {
-        buttonStyle = makeIconButtonStyleComponent(node);
-    } else {
+    if (typeButton !== 'icon') {
         buttonStyle = makeElevatedButtonStyleComponent(node);
     }
 
-    const properties = children + onPressed + buttonStyle;
+    let properties = children + onPressed + buttonStyle;
+    if (typeButton === 'icon') {
+        const padding = flutterPadding(node);
+        properties += padding;
+    }
 
     const {width, height, layoutMode} = getLayoutType(node);
 
@@ -75,11 +79,14 @@ export const flutterButton = (node: InstanceNode | ComponentNode): string => {
         buttonComponent = `ElevatedButton(${properties}\n),`;
     }
 
-    const shadow = flutterBoxShadow(node);
+    if (typeButton === 'icon') {
+        buttonComponent = makeIconButtonStyleWrapper(node, buttonComponent);
+    }
 
-    if (shadow !== '') {
+    const shadow = flutterBoxShadow(node);
+    if (shadow !== '' && typeButton !== 'icon') {
         const borderRadius = flutterBorderRadius(node);
-        buttonComponent = `Container(\ndecoration: BoxDecoration(${borderRadius}${shadow}\n),\nchild: ${buttonComponent}\n),`;
+        buttonComponent = `Container(\ndecoration: BoxDecoration(${borderRadius}${shadow}\n),\nchild: \n${buttonComponent}\n),`;
     }
 
     return wrapInteractiveComponent(width, height, layoutMode, buttonComponent, node);

@@ -255,11 +255,11 @@ export const flutterPadding = (node: any): string => {
         paddingBottom === undefined &&
         paddingTop === undefined
     ) {
-        return '';
+        return '\npadding: const EdgeInsets.all(0),';
     }
 
     if (paddingLeft === 0 && paddingRight === 0 && paddingBottom === 0 && paddingTop === 0) {
-        return '';
+        return '\npadding: const EdgeInsets.all(0),';
     }
 
     return `\npadding: const EdgeInsets.fromLTRB(${paddingLeft}, ${paddingTop}, ${paddingRight}, ${paddingBottom}),`;
@@ -305,6 +305,10 @@ export const wrapInteractiveComponent = (
     const parentScreen = getScreenParent(node);
     const padding = flutterPadding(node);
 
+    console.log(widthMode);
+    console.log(heightMode);
+    console.log(layoutMode);
+
     //LAYOUTS INDEPENDENT OF LAYOUTMODE
     if (widthMode === 'WRAP_CONTENT' && heightMode === 'WRAP_CONTENT') {
         return `Container(${padding}\nchild: ${interactiveComponent}\n),`;
@@ -328,40 +332,40 @@ export const wrapInteractiveComponent = (
     //VERTICAL LAYOUT
     if (layoutMode === 'VERTICAL') {
         if (widthMode === 'MATCH_PARENT' && heightMode === 'WRAP_CONTENT') {
-            return `Container(${padding}\nwidth: double.infinity,\nchild: \n${interactiveComponent}\n),`;
+            return `Container(${padding}\nwidth: double.infinity,\nchild: ${interactiveComponent}\n),`;
         } else if (widthMode === 'WRAP_CONTENT' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}\nchild: \n${interactiveComponent})\n),`;
+            return `Expanded(\nchild: Container(${padding}\nchild: ${interactiveComponent})\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}\nwidth: double.infinity,\nchild: \n${interactiveComponent})\n),`;
+            return `Expanded(\nchild: Container(${padding}\nwidth: double.infinity,\nchild: ${interactiveComponent})\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'FIXED') {
             return `Container(${padding}\nwidth: double.infinity,\nheight: ${getHeightRatioParent(
                 node,
                 parentScreen
-            )},\nchild: \n${interactiveComponent}\n),`;
+            )},\nchild: ${interactiveComponent}\n),`;
         } else if (widthMode === 'FIXED' && heightMode === 'MATCH_PARENT') {
             return `Expanded(\nchild: Container(${padding}\nwidth: ${getWidthRatioParent(
                 node,
                 parentScreen
-            )},\nchild: \n${interactiveComponent})\n),`;
+            )},\nchild: ${interactiveComponent})\n),`;
         }
     } else {
         //HORIZONTAL LAYOUT
         if (widthMode === 'WRAP_CONTENT' && heightMode === 'MATCH_PARENT') {
-            return `Container(${padding}\nheight: double.infinity,\nchild: \n${interactiveComponent}\n),`;
+            return `Container(${padding}\nheight: double.infinity,\nchild: ${interactiveComponent}\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'WRAP_CONTENT') {
-            return `Expanded(\nchild: Container(${padding}\nchild: \n${interactiveComponent})\n),`;
+            return `Expanded(\nchild: Container(${padding}\nchild: ${interactiveComponent})\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}\nheight: double.infinity,\nchild: \n${interactiveComponent})\n),`;
+            return `Expanded(\nchild: Container(${padding}\nheight: double.infinity,\nchild: ${interactiveComponent})\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'FIXED') {
             return `Expanded(\nchild: Container(${padding}\nheight: ${getHeightRatioParent(
                 node,
                 parentScreen
-            )},\nchild: \n${interactiveComponent})\n),`;
+            )},\nchild: ${interactiveComponent})\n),`;
         } else if (widthMode === 'FIXED' && heightMode === 'MATCH_PARENT') {
             return `Container(${padding}\nheight: double.infinity, \nwidth: ${getWidthRatioParent(
                 node,
                 parentScreen
-            )},\nchild: \n${interactiveComponent}\n),`;
+            )},\nchild: ${interactiveComponent}\n),`;
         }
     }
 

@@ -6,6 +6,8 @@ export const flutterIcon = (node: any): string => {
         let color = '';
         if (iconMaterial.fills !== null && iconMaterial.fills.length > 0) {
             color = `\ncolor: Color(${getFlutterColor(iconMaterial.fills[0])}),`;
+        } else if (iconMaterial.strokes !== null && iconMaterial.strokes.length > 0) {
+            color = `\ncolor: Color(${getFlutterColor(iconMaterial.strokes[0])}),`;
         } else {
             color = `\ncolor: Colors.transparent,`;
         }

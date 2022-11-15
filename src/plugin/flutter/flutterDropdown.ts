@@ -6,8 +6,9 @@ export const flutterDropdown = (node: InstanceNode | ComponentNode): string => {
     const textNode = findNodeInSubtreeByType(node, 'TEXT');
 
     const onChanged = `\nonChanged: (value){},`;
+    const underline = 'underline: SizedBox(),';
     const textComp = makeTextComponent(textNode);
-    const items = `\nitems: [DropdownMenuItem(child: \n${textComp}\n)\n],`;
+    const items = `\nitems: [\nDropdownMenuItem(\nchild: ${textComp}\n)\n],`;
     const iconComp = flutterIcon(node);
 
     let iconDrop = '';
@@ -15,7 +16,7 @@ export const flutterDropdown = (node: InstanceNode | ComponentNode): string => {
         iconDrop = `\nicon: ${iconComp}`;
     }
 
-    const dropComp = `DropdownButton(${iconDrop}${items}${onChanged}\n),`;
+    const dropComp = `DropdownButton(${iconDrop}${items}${onChanged}${underline}\n),`;
 
     return makeContainerWithStyle(node, dropComp);
 };

@@ -15,6 +15,7 @@ import {
     heightScreen,
     makeContainerWithStyle,
     findNodeInSubtreeByType,
+    findNodeInSubtreeByName,
 } from './utils';
 import {flutterButton} from './flutterButton';
 import {makeTextComponent} from './flutterTextBuilder';
@@ -74,7 +75,7 @@ const flutterContainer = (node: FrameNode | GroupNode | RectangleNode | EllipseN
 
             const image = `\nimage: AssetImage("assets/${node.name}.png")`;
             const decorationImage = `\nimage: DecorationImage(${indentString(image)},\nfit: BoxFit.fill,\n),`;
-            const decoration = `\ndecoration: const BoxDecoration(${indentString(decorationImage)}\n${indentString(
+            const decoration = `\ndecoration: const BoxDecoration(${indentString(decorationImage)}${indentString(
                 shadow
             )}\n),`;
             return `Container(\nwidth: ${getWidthRatioParent(node, parentScreen)},\nheight: ${getHeightRatioParent(
@@ -134,42 +135,47 @@ const flutterComponent = (node: InstanceNode | ComponentNode): string => {
     }
 };
 
-const flutterFloatingActionButton = (sceneNode: ReadonlyArray<SceneNode>): string => {
+const flutterFloatingActionButton = (node: any): string => {
     let floatingActionButton = '';
+    const floatingButtonNode = findNodeInSubtreeByName(node, 'Floating button');
 
-    sceneNode.forEach((node) => {
-        if (node.name.includes('Floating button')) {
-            const circle = findNodeInSubtreeByType(node, 'ELLIPSE');
-            const icon = findNodeInSubtreeByType(node, 'VECTOR');
+    if (floatingButtonNode !== null) {
+        const circle = findNodeInSubtreeByType(floatingButtonNode, 'ELLIPSE');
+        const icon = findNodeInSubtreeByType(floatingButtonNode, 'VECTOR');
 
-            //Change this way of generation icon
-            const iconResource = `\nchild: const Icon(Icons.${icon.name}),`;
-            const onPressed = '\nonPressed: (){},';
-            const color = getFlutterColor(circle.fills[0]);
-            const backgroundColor = `\nbackgroundColor: Color(${color}),`;
+        //Change this way of generation icon
+        const iconResource = `\nchild: const Icon(Icons.${icon.name}),`;
+        const onPressed = '\nonPressed: (){},';
+        const color = getFlutterColor(circle.fills[0]);
+        const backgroundColor = `\nbackgroundColor: Color(${color}),`;
 
-            const properties = backgroundColor + onPressed + iconResource;
+        const properties = backgroundColor + onPressed + iconResource;
 
-            // getLocation of button: startFloat, startTop, endFloat, endTop
+        // getLocation of button: startFloat, startTop, endFloat, endTop
+        const widthScreen = node.width;
+        const heightScreen = node.height;
 
-            const parent: SceneNode = node.parent as SceneNode;
-            const widthScreen = parent.width;
-            const heightScreen = parent.height;
+        const xParent = node.absoluteBoundingBox.x;
+        const yParent = node.absoluteBoundingBox.y;
 
-            let position = '\nfloatingActionButtonLocation: FloatingActionButtonLocation.';
-            if (node.x < widthScreen / 2 && node.y <= heightScreen / 2) {
-                position += 'startTop,';
-            } else if (node.x >= widthScreen / 2 && node.y <= heightScreen / 2) {
-                position += 'endTop,';
-            } else if (node.x < widthScreen / 2 && node.y > heightScreen / 2) {
-                position += 'startFloat,';
-            } else if (node.x >= widthScreen / 2 && node.y > heightScreen / 2) {
-                position += 'endFloat,';
-            }
+        const xButton = circle.absoluteBoundingBox.x;
+        const yButton = circle.absoluteBoundingBox.y;
 
-            floatingActionButton = `\nfloatingActionButton: FloatingActionButton(${properties}\n),${position}`;
+        // Position based on absolute positions for y and position of circle in row frame for x
+        let position = '\nfloatingActionButtonLocation: FloatingActionButtonLocation.';
+
+        if (xButton < xParent + widthScreen / 2 && yButton <= yParent + heightScreen / 2) {
+            position += 'startTop,';
+        } else if (xButton >= xParent + widthScreen / 2 && yButton <= yParent + heightScreen / 2) {
+            position += 'endTop,';
+        } else if (xButton < xParent + widthScreen / 2 && yButton > yParent + heightScreen / 2) {
+            position += 'startFloat,';
+        } else if (xButton >= xParent + widthScreen / 2 && yButton > yParent + heightScreen / 2) {
+            position += 'endFloat,';
         }
-    });
+
+        floatingActionButton = `\nfloatingActionButton: FloatingActionButton(${properties}\n),${position}`;
+    }
 
     return floatingActionButton;
 };
@@ -177,12 +183,13 @@ const flutterFloatingActionButton = (sceneNode: ReadonlyArray<SceneNode>): strin
 const flutterFrame = (node: any): string => {
     // -------- SCREENS ----------------------------
     if (node.name.includes('SCREEN')) {
+        console.log('Hey');
         //Convert readonly array to regular array
         const childrenOriginal = node.children.concat();
         //Sort all components in screen vertically
         childrenOriginal.sort((a, b) => (a.y > b.y ? 1 : -1));
+        const floatingActionButton = flutterFloatingActionButton(node);
 
-        const floatingActionButton = flutterFloatingActionButton(childrenOriginal);
         const children = flutterWidgetGenerator(childrenOriginal);
 
         //Manage screens with image or color backgrounds
@@ -234,39 +241,32 @@ export const getLayoutType = (
     let height = '';
 
     const layoutMode = node.layoutMode;
-    const layoutGrow = node.layoutGrow;
     const primaryAxisSizingMode = node.primaryAxisSizingMode;
-    const layoutAlign = node.layoutAlign;
     const counterAxisSizingMode = node.counterAxisSizingMode;
 
     let primaryAxis = '';
     let counterAxis = '';
 
-    //EXAMPLE FOR COLUMNS
-    // Height fixed
-    if (layoutGrow === 0 && primaryAxisSizingMode === 'FIXED') {
-        primaryAxis = 'FIXED';
-        // Height hug
-    } else if (layoutGrow === 0 && primaryAxisSizingMode === 'AUTO') {
+    // Manage just fixed and wrap measures, fill causes render flex problems because of Expanded widgets
+    if (primaryAxisSizingMode === 'AUTO') {
         primaryAxis = 'WRAP_CONTENT';
-        // Height fill
-    } else if (layoutGrow === 1) {
-        primaryAxis = 'MATCH_PARENT';
+    } else {
+        primaryAxis = 'FIXED';
+        // primaryAxis = matchOrFixed(node, layoutMode)
     }
 
-    // Width fixed
-    if (layoutAlign === 'INHERIT' && counterAxisSizingMode === 'FIXED') {
-        counterAxis = 'FIXED';
-        // Width hug
-    } else if (layoutAlign === 'INHERIT' && counterAxisSizingMode === 'AUTO') {
+    if (counterAxisSizingMode === 'AUTO') {
         counterAxis = 'WRAP_CONTENT';
-        // Width fill
-    } else if (layoutAlign === 'STRETCH') {
-        counterAxis = 'MATCH_PARENT';
+    } else {
+        counterAxis = 'FIXED';
+        // if(layoutMode === "VERTICAL"){
+        //     counterAxis = matchOrFixed(node, "HORIZONTAL")
+        // }else{
+        //     counterAxis = matchOrFixed(node, "VERTICAL")
+        // }
     }
 
     if (layoutMode === 'VERTICAL') {
-        //COLUMNS
         height = primaryAxis;
         width = counterAxis;
     } else {
@@ -278,6 +278,51 @@ export const getLayoutType = (
     return {width, height, layoutMode};
 };
 
+// Function to decide between fixed or fill size by taking into account measures
+// of child and parent node, not used because of Expanded widget problems
+const matchOrFixed = (node: any, axis: string): string => {
+    let result = '';
+    const nodeParent = node.parent;
+
+    let paddingLeft = nodeParent.paddingLeft;
+    let paddingRight = nodeParent.paddingRight;
+    let paddingBottom = nodeParent.paddingBottom;
+    let paddingTop = nodeParent.paddingTop;
+
+    // If there are no paddings, manage it as 0s
+    if (
+        paddingLeft === undefined &&
+        paddingRight === undefined &&
+        paddingBottom === undefined &&
+        paddingTop === undefined
+    ) {
+        paddingLeft = 0;
+        paddingRight = 0;
+        paddingBottom = 0;
+        paddingTop = 0;
+    }
+
+    if (axis === 'VERTICAL') {
+        const nodeChildHeight = node.height + paddingTop + paddingBottom;
+        if (nodeChildHeight === nodeParent.height) {
+            result = 'MATCH_PARENT';
+        } else {
+            result = 'FIXED';
+        }
+    } else {
+        const nodeChildWidth = node.width + paddingLeft + paddingRight;
+        if (nodeChildWidth === nodeParent.width) {
+            result = 'MATCH_PARENT';
+        } else {
+            result = 'FIXED';
+        }
+    }
+
+    return result;
+};
+
+// Expanded widgets are avoided because of render flex problems
+// Currently supporting just Container widgets with measures
 export const getLayoutComponent = (
     widthMode: string,
     heightMode: string,
@@ -292,10 +337,6 @@ export const getLayoutComponent = (
     const decoration = flutterContainerDecoration(node);
     const padding = flutterPadding(node);
 
-    console.log(widthMode);
-    console.log(heightMode);
-    console.log(layoutMode);
-
     //LAYOUTS INDEPENDENT OF LAYOUTMODE
     if (widthMode === 'WRAP_CONTENT' && heightMode === 'WRAP_CONTENT') {
         return `Container(${padding}${decoration}\nchild: ${makeRowOrColumn(node, children)}\n),`;
@@ -303,12 +344,12 @@ export const getLayoutComponent = (
         return `Container(${padding}${decoration}\nwidth: ${getWidthRatioParent(
             node,
             parentScreen
-        )},\nheight: ${getHeightRatioParent(node, parentScreen)},\nchild: \n${makeRowOrColumn(node, children)}\n),`;
+        )},\nheight: ${getHeightRatioParent(node, parentScreen)},\nchild: ${makeRowOrColumn(node, children)}\n),`;
     } else if (widthMode === 'WRAP_CONTENT' && heightMode === 'FIXED') {
         return `Container(${padding}${decoration}\nheight: ${getHeightRatioParent(
             node,
             parentScreen
-        )},\nchild: \n${makeRowOrColumn(node, children)}\n),`;
+        )},\nchild: ${makeRowOrColumn(node, children)}\n),`;
     } else if (widthMode === 'FIXED' && heightMode === 'WRAP_CONTENT') {
         return `Container(${padding}${decoration}\nwidth: ${getWidthRatioParent(
             node,

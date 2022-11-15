@@ -40,7 +40,7 @@ export const flutterTextField = (node: InstanceNode | ComponentNode): string => 
 
     const shadow = flutterBoxShadow(inputBoxNode);
     if (shadow !== '') {
-        textFieldWidget = `Container(decoration: BoxDecoration(${shadow}\n),\nchild: ${textFieldWidget}\n),`;
+        textFieldWidget = `Container(\ndecoration: BoxDecoration(${shadow}\n),\nchild: ${textFieldWidget}\n),`;
     }
 
     const {width, height, layoutMode} = getLayoutType(node);
@@ -48,7 +48,7 @@ export const flutterTextField = (node: InstanceNode | ComponentNode): string => 
     // If there is a label above the input box
     if (labelNode !== null && labelNode.visible) {
         const labelStyle = makeTextStyleComponent(labelNode);
-        const textLabelWidget = `Text(\n"${labelNode.characters}",${labelStyle}\n),`;
+        const textLabelWidget = `Text(\nr"${labelNode.characters}",${labelStyle}\n),`;
 
         const wrapperTextField = `Expanded(\nchild: ${textFieldWidget})`;
 

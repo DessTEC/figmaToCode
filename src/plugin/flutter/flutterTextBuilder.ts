@@ -26,7 +26,7 @@ export const makeTextComponent = (node: TextNode): string => {
     const splittedChars = text.split('\n');
     const charsWithLineBreak = splittedChars.length > 1 ? splittedChars.join('\\n') : text;
 
-    const properties = `\n"${charsWithLineBreak}",${textAlign}${style}`;
+    const properties = `\nr"${charsWithLineBreak}",${textAlign}${style}`;
 
     return `const Text(${indentString(properties)}\n),`;
 };
