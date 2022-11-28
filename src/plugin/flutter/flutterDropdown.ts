@@ -1,14 +1,25 @@
 import {flutterIcon} from './flutterIcon';
+import {getLayoutType} from './flutterMain';
 import {makeTextComponent} from './flutterTextBuilder';
-import {findNodeInSubtreeByType, makeContainerWithStyle} from './utils';
+import {
+    findNodeInSubtreeByName,
+    findNodeInSubtreeByType,
+    indentString,
+    makeContainerWithStyle,
+    wrapInteractiveComponent,
+} from './utils';
 
 export const flutterDropdown = (node: InstanceNode | ComponentNode): string => {
     const textNode = findNodeInSubtreeByType(node, 'TEXT');
+    const boxNode = findNodeInSubtreeByName(node, 'DropdownBox');
 
     const onChanged = `\nonChanged: (value){},`;
-    const underline = 'underline: SizedBox(),';
+    const underline = '\nunderline: SizedBox(),';
+    const isExpanded = `\nisExpanded: true,`;
     const textComp = makeTextComponent(textNode);
-    const items = `\nitems: [\nDropdownMenuItem(\nchild: ${textComp}\n)\n],`;
+
+    const dropItem = `DropdownMenuItem(\n${indentString(`child: ${textComp}`)}\n)`;
+    const items = `\nitems: [\n${indentString(dropItem)}\n],`;
     const iconComp = flutterIcon(node);
 
     let iconDrop = '';
@@ -16,7 +27,10 @@ export const flutterDropdown = (node: InstanceNode | ComponentNode): string => {
         iconDrop = `\nicon: ${iconComp}`;
     }
 
-    const dropComp = `DropdownButton(${iconDrop}${items}${onChanged}${underline}\n),`;
+    let dropComp = `DropdownButton(${indentString(`${iconDrop}${items}${onChanged}${underline}${isExpanded}`)}\n),`;
+    dropComp = makeContainerWithStyle(boxNode, dropComp);
 
-    return makeContainerWithStyle(node, dropComp);
+    const {width, height, layoutMode} = getLayoutType(node);
+
+    return wrapInteractiveComponent(width, height, layoutMode, dropComp, node);
 };

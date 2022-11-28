@@ -2,7 +2,6 @@ import {
     indentString,
     figmaRGBToFlutterColor,
     clone,
-    findNodeInChildren,
     getFlutterColor,
     widthScreen,
     getWidthRatioParent,
@@ -22,6 +21,8 @@ import {makeTextComponent} from './flutterTextBuilder';
 import {flutterTextField} from './flutterTextField';
 import {flutterIcon} from './flutterIcon';
 import {flutterDropdown} from './flutterDropdown';
+import {flutterRadio} from './flutterRadio';
+import {flutterCheckbox} from './flutterCheckbox';
 
 export const flutterWidgetGenerator = (sceneNode: ReadonlyArray<SceneNode>): string => {
     let comp = '';
@@ -43,6 +44,8 @@ export const flutterWidgetGenerator = (sceneNode: ReadonlyArray<SceneNode>): str
             comp += flutterComponent(node);
         } else if (node.type === 'COMPONENT') {
             comp += flutterComponent(node);
+        } else if (node.type === 'LINE') {
+            comp += flutterLine(node);
         }
 
         if (index < sceneLen - 1) {
@@ -66,27 +69,43 @@ const flutterContainer = (node: FrameNode | GroupNode | RectangleNode | EllipseN
     if ('fills' in node && node.fills[0].type === 'IMAGE') {
         if (node.name.includes('SCREEN')) {
             const image = `\nimage: AssetImage("assets/background.png")`;
-            const decorationImage = `\nimage: DecorationImage(${indentString(image)},\nfit: BoxFit.cover,\n)`;
+            const decorationImage = `\nimage: DecorationImage(${indentString(`${image},\nfit: BoxFit.cover,`)}\n),`;
             const decoration = `\ndecoration: const BoxDecoration(${indentString(decorationImage)}\n),`;
-            return `Container(${indentString(decoration)}\nchild: ${child}\n);`;
+            return `Container(${indentString(`${decoration}\nchild: ${child}`)}\n);`;
         } else {
             const parentScreen = getScreenParent(node);
             const shadow = flutterBoxShadow(node);
 
             const image = `\nimage: AssetImage("assets/${node.name}.png")`;
-            const decorationImage = `\nimage: DecorationImage(${indentString(image)},\nfit: BoxFit.fill,\n),`;
-            const decoration = `\ndecoration: const BoxDecoration(${indentString(decorationImage)}${indentString(
-                shadow
+            const decorationImage = `\nimage: DecorationImage(${indentString(`${image},\nfit: BoxFit.cover,`)}\n),`;
+            const decoration = `\ndecoration: const BoxDecoration(${indentString(`${decorationImage}${shadow}`)}\n),`;
+            return `Container(\n${indentString(
+                `width: ${getWidthRatioParent(node, parentScreen)},\nheight: ${getHeightRatioParent(
+                    node,
+                    parentScreen
+                )},${decoration}`
             )}\n),`;
-            return `Container(\nwidth: ${getWidthRatioParent(node, parentScreen)},\nheight: ${getHeightRatioParent(
-                node,
-                parentScreen
-            )},${indentString(decoration)}\n),`;
         }
     }
 
     //Define container for more shapes
     return makeContainerWithStyle(node, child);
+};
+
+const flutterLine = (node: LineNode): string => {
+    const propStrokeColor = getFlutterColor(node.strokes[0]);
+    const color = `\ncolor: Color(${propStrokeColor})`;
+
+    const parentScreen = getScreenParent(node);
+    let width = getWidthRatioParent(node, parentScreen);
+    if (width === 'MediaQuery.of(context).size.width*0.000') {
+        width = '1';
+    }
+    let height = getHeightRatioParent(node, parentScreen);
+    if (height === 'MediaQuery.of(context).size.height*0.000') {
+        height = '1';
+    }
+    return `Container(\n${indentString(`width: ${width},\nheight: ${height},${color}`)}\n),`;
 };
 
 const flutterContainerDecoration = (node: any): string => {
@@ -96,7 +115,7 @@ const flutterContainerDecoration = (node: any): string => {
         //Image as background
         if (node.fills[0].type === 'IMAGE') {
             const image = `\nimage: AssetImage("assets/background.png")`;
-            background = `\nimage: DecorationImage(${indentString(image)},\nfit: BoxFit.cover,\n),`;
+            background = `\nimage: DecorationImage(${indentString(`${image},\nfit: BoxFit.cover,`)}\n),`;
             //Color as background
         } else if (node.fills[0].type === 'SOLID') {
             const color = getFlutterColor(node.fills[0]);
@@ -116,7 +135,7 @@ const flutterContainerDecoration = (node: any): string => {
     }
 
     //Define container for more shapes
-    return `\ndecoration: BoxDecoration(${background}${border}${borderRadius}${shadow}\n),`;
+    return `\ndecoration: BoxDecoration(${indentString(`${background}${border}${borderRadius}${shadow}`)}\n),`;
 };
 
 const flutterComponent = (node: InstanceNode | ComponentNode): string => {
@@ -130,6 +149,10 @@ const flutterComponent = (node: InstanceNode | ComponentNode): string => {
         return flutterIcon(node);
     } else if (nodeName.includes('Dropdown')) {
         return flutterDropdown(node);
+    } else if (nodeName.includes('Radio')) {
+        return flutterRadio(node);
+    } else if (nodeName.includes('Checkbox')) {
+        return flutterCheckbox(node);
     } else {
         return flutterFrame(node);
     }
@@ -174,7 +197,9 @@ const flutterFloatingActionButton = (node: any): string => {
             position += 'endFloat,';
         }
 
-        floatingActionButton = `\nfloatingActionButton: FloatingActionButton(${properties}\n),${position}`;
+        floatingActionButton = `\nfloatingActionButton: FloatingActionButton(${indentString(
+            properties
+        )}\n),${position}`;
     }
 
     return floatingActionButton;
@@ -183,7 +208,6 @@ const flutterFloatingActionButton = (node: any): string => {
 const flutterFrame = (node: any): string => {
     // -------- SCREENS ----------------------------
     if (node.name.includes('SCREEN')) {
-        console.log('Hey');
         //Convert readonly array to regular array
         const childrenOriginal = node.children.concat();
         //Sort all components in screen vertically
@@ -196,16 +220,20 @@ const flutterFrame = (node: any): string => {
         if (node.backgrounds.length > 0) {
             const background: any = node.backgrounds[0];
             const padding = flutterPadding(node);
-            const safeArea = `SafeArea(\nchild: Container(\nwidth: ${widthScreen},\nheight: ${heightScreen},${padding}\nchild: Column(\nchildren: <Widget>[\n${indentString(
-                children,
-                1
-            )}\n]\n)\n)\n)`;
+            const column = `Column(\n${indentString(`children: <Widget>[\n${indentString(children, 1)}\n]`)}\n)`;
+            const container = `Container(\n${indentString(
+                `width: ${widthScreen},\nheight: ${heightScreen},${padding}\nchild: ${column}`
+            )}\n)`;
+            const safeArea = `SafeArea(\n${indentString(`child: ${container}`)}\n)`;
+            const childrenListView = `${indentString(safeArea)}`;
 
-            const listView = `ListView(\nchildren: <Widget>[\n${safeArea}\n]\n)`;
+            const listView = `ListView(\n${indentString(`children: <Widget>[\n${childrenListView}\n]`)}\n)`;
 
             switch (background.type) {
                 case 'IMAGE': {
-                    const scaffold = `Scaffold(\nbackgroundColor: Colors.transparent,${floatingActionButton}\nbody: ${listView}\n)`;
+                    const scaffold = `Scaffold(\n${indentString(
+                        `backgroundColor: Colors.transparent,${floatingActionButton}\nbody: ${listView}`
+                    )}\n)`;
                     return flutterContainer(node, scaffold);
                 }
                 default: {
@@ -213,7 +241,9 @@ const flutterFrame = (node: any): string => {
                     colorFigma['a'] = background.opacity;
 
                     const hexColor = figmaRGBToFlutterColor(colorFigma);
-                    return `Scaffold(\nbackgroundColor: Color(${hexColor}),${floatingActionButton}\nbody: ${listView}\n);`;
+                    return `Scaffold(\n${indentString(
+                        `backgroundColor: Color(${hexColor}),${floatingActionButton}\nbody: ${listView}`
+                    )}\n);`;
                 }
             }
         } else {
@@ -225,7 +255,7 @@ const flutterFrame = (node: any): string => {
         }
         // -------- AUTO LAYOUTS ----------------------------
     } else if (node.layoutMode !== 'NONE') {
-        const children = flutterWidgetGenerator(node.children);
+        let children = flutterWidgetGenerator(node.children);
 
         const {width, height, layoutMode} = getLayoutType(node);
 
@@ -237,36 +267,64 @@ const flutterFrame = (node: any): string => {
 export const getLayoutType = (
     node: FrameNode | InstanceNode | ComponentNode
 ): {width: string; height: string; layoutMode: string} => {
+    const translationDict = {
+        1: 'STRETCH',
+        0: 'INHERIT',
+        STRETCH: 1,
+        INHERIT: 0,
+    };
+
     let width = '';
     let height = '';
 
     const layoutMode = node.layoutMode;
+    let layoutGrow = node.layoutGrow;
     const primaryAxisSizingMode = node.primaryAxisSizingMode;
+    let layoutAlign = node.layoutAlign;
     const counterAxisSizingMode = node.counterAxisSizingMode;
 
     let primaryAxis = '';
     let counterAxis = '';
 
-    // Manage just fixed and wrap measures, fill causes render flex problems because of Expanded widgets
-    if (primaryAxisSizingMode === 'AUTO') {
-        primaryAxis = 'WRAP_CONTENT';
-    } else {
-        primaryAxis = 'FIXED';
-        // primaryAxis = matchOrFixed(node, layoutMode)
+    const parent = node.parent as FrameNode;
+    const parentMode = parent.layoutMode;
+
+    // Verify if properties need to be swaped because mismatch in layout mode
+    // between parent and child
+    // This will change layoutGrow value to layoutAlign equivalent and viceversa
+    if (parentMode !== layoutMode) {
+        if (layoutGrow === 1 || layoutAlign === 'STRETCH') {
+            const temp = layoutGrow;
+            layoutGrow = translationDict[layoutAlign];
+            layoutAlign = translationDict[temp];
+        }
     }
 
-    if (counterAxisSizingMode === 'AUTO') {
-        counterAxis = 'WRAP_CONTENT';
+    if (layoutGrow === 1) {
+        // Match parent in primary axis of PARENT (verify if it has to be changed)
+        primaryAxis = 'MATCH_PARENT';
     } else {
-        counterAxis = 'FIXED';
-        // if(layoutMode === "VERTICAL"){
-        //     counterAxis = matchOrFixed(node, "HORIZONTAL")
-        // }else{
-        //     counterAxis = matchOrFixed(node, "VERTICAL")
-        // }
+        // This properties are applied to primary axis of current node
+        if (primaryAxisSizingMode === 'FIXED') {
+            primaryAxis = 'FIXED';
+        } else {
+            primaryAxis = 'WRAP_CONTENT';
+        }
+    }
+
+    if (layoutAlign === 'STRETCH') {
+        // Match parent in counter axis of PARENT (verify if it has to be changed)
+        counterAxis = 'MATCH_PARENT';
+    } else {
+        if (counterAxisSizingMode === 'FIXED') {
+            counterAxis = 'FIXED';
+        } else {
+            counterAxis = 'WRAP_CONTENT';
+        }
     }
 
     if (layoutMode === 'VERTICAL') {
+        //COLUMNS
         height = primaryAxis;
         width = counterAxis;
     } else {
@@ -276,49 +334,6 @@ export const getLayoutType = (
     }
 
     return {width, height, layoutMode};
-};
-
-// Function to decide between fixed or fill size by taking into account measures
-// of child and parent node, not used because of Expanded widget problems
-const matchOrFixed = (node: any, axis: string): string => {
-    let result = '';
-    const nodeParent = node.parent;
-
-    let paddingLeft = nodeParent.paddingLeft;
-    let paddingRight = nodeParent.paddingRight;
-    let paddingBottom = nodeParent.paddingBottom;
-    let paddingTop = nodeParent.paddingTop;
-
-    // If there are no paddings, manage it as 0s
-    if (
-        paddingLeft === undefined &&
-        paddingRight === undefined &&
-        paddingBottom === undefined &&
-        paddingTop === undefined
-    ) {
-        paddingLeft = 0;
-        paddingRight = 0;
-        paddingBottom = 0;
-        paddingTop = 0;
-    }
-
-    if (axis === 'VERTICAL') {
-        const nodeChildHeight = node.height + paddingTop + paddingBottom;
-        if (nodeChildHeight === nodeParent.height) {
-            result = 'MATCH_PARENT';
-        } else {
-            result = 'FIXED';
-        }
-    } else {
-        const nodeChildWidth = node.width + paddingLeft + paddingRight;
-        if (nodeChildWidth === nodeParent.width) {
-            result = 'MATCH_PARENT';
-        } else {
-            result = 'FIXED';
-        }
-    }
-
-    return result;
 };
 
 // Expanded widgets are avoided because of render flex problems
@@ -337,81 +352,110 @@ export const getLayoutComponent = (
     const decoration = flutterContainerDecoration(node);
     const padding = flutterPadding(node);
 
+    // Make layout taking into account primary axis of parent node
+    const parent = node.parent as FrameNode;
+    const parentMode = parent.layoutMode;
+
+    // Verify if properties need to be swaped because mismatch in layout mode
+    // between parent and child
+    // This will change layoutGrow value to layoutAlign equivalent and viceversa
+    if (parentMode !== layoutMode) {
+        if (layoutMode === 'VERTICAL') {
+            layoutMode = 'HORIZONTAL';
+        } else {
+            layoutMode = 'VERTICAL';
+        }
+    }
+
     //LAYOUTS INDEPENDENT OF LAYOUTMODE
     if (widthMode === 'WRAP_CONTENT' && heightMode === 'WRAP_CONTENT') {
-        return `Container(${padding}${decoration}\nchild: ${makeRowOrColumn(node, children)}\n),`;
+        return `Container(${indentString(`${padding}${decoration}\nchild: ${makeRowOrColumn(node, children)}`)}\n),`;
     } else if (widthMode === 'FIXED' && heightMode === 'FIXED') {
-        return `Container(${padding}${decoration}\nwidth: ${getWidthRatioParent(
-            node,
-            parentScreen
-        )},\nheight: ${getHeightRatioParent(node, parentScreen)},\nchild: ${makeRowOrColumn(node, children)}\n),`;
+        return `Container(${indentString(
+            `${padding}${decoration}\nwidth: ${getWidthRatioParent(
+                node,
+                parentScreen
+            )},\nheight: ${getHeightRatioParent(node, parentScreen)},\nchild: ${makeRowOrColumn(node, children)}`
+        )}\n),`;
     } else if (widthMode === 'WRAP_CONTENT' && heightMode === 'FIXED') {
-        return `Container(${padding}${decoration}\nheight: ${getHeightRatioParent(
-            node,
-            parentScreen
-        )},\nchild: ${makeRowOrColumn(node, children)}\n),`;
+        return `Container(${indentString(
+            `${padding}${decoration}\nheight: ${getHeightRatioParent(node, parentScreen)},\nchild: ${makeRowOrColumn(
+                node,
+                children
+            )}`
+        )}\n),`;
     } else if (widthMode === 'FIXED' && heightMode === 'WRAP_CONTENT') {
-        return `Container(${padding}${decoration}\nwidth: ${getWidthRatioParent(
-            node,
-            parentScreen
-        )},\nchild: ${makeRowOrColumn(node, children)}\n),`;
+        return `Container(${indentString(
+            `${padding}${decoration}\nwidth: ${getWidthRatioParent(node, parentScreen)},\nchild: ${makeRowOrColumn(
+                node,
+                children
+            )}`
+        )}\n),`;
     }
 
     //VERTICAL LAYOUT
     if (layoutMode === 'VERTICAL') {
         if (widthMode === 'MATCH_PARENT' && heightMode === 'WRAP_CONTENT') {
-            return `Container(${padding}${decoration}\nwidth: double.infinity,\nchild: ${makeRowOrColumn(
-                node,
-                children
+            return `Container(${indentString(
+                `${padding}${decoration}\nwidth: double.infinity,\nchild: ${makeRowOrColumn(node, children)}`
             )}\n),`;
         } else if (widthMode === 'WRAP_CONTENT' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}${decoration}\nchild: ${makeRowOrColumn(
-                node,
-                children
-            )}\n)\n),`;
+            const container = `Container(${indentString(
+                `${padding}${decoration}\nchild: ${makeRowOrColumn(node, children)}`
+            )}\n)`;
+            return `Expanded(\n${indentString(`child: ${container}`)}\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}${decoration}\nwidth: double.infinity,\nchild: ${makeRowOrColumn(
-                node,
-                children
-            )}\n)\n),`;
+            const container = `Container(${indentString(
+                `${padding}${decoration}\nwidth: double.infinity,\nchild: ${makeRowOrColumn(node, children)}`
+            )}\n)`;
+            return `Expanded(\n${indentString(`child: ${container}`)}\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'FIXED') {
-            return `Container(${padding}${decoration}\nwidth: double.infinity,\nheight: ${getHeightRatioParent(
-                node,
-                parentScreen
-            )},\nchild: ${makeRowOrColumn(node, children)}\n),`;
+            return `Container(${indentString(
+                `${padding}${decoration}\nwidth: double.infinity,\nheight: ${getHeightRatioParent(
+                    node,
+                    parentScreen
+                )},\nchild: ${makeRowOrColumn(node, children)}`
+            )}\n),`;
         } else if (widthMode === 'FIXED' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}${decoration}\nwidth: ${getWidthRatioParent(
-                node,
-                parentScreen
-            )},\nchild: ${makeRowOrColumn(node, children)}\n)\n),`;
+            const container = `Container(${indentString(
+                `${padding}${decoration}\nwidth: ${getWidthRatioParent(node, parentScreen)},\nchild: ${makeRowOrColumn(
+                    node,
+                    children
+                )}`
+            )}\n)`;
+            return `Expanded(\n${indentString(`child: ${container}`)}\n),`;
         }
     } else {
         //HORIZONTAL LAYOUT
         if (widthMode === 'WRAP_CONTENT' && heightMode === 'MATCH_PARENT') {
-            return `Container(${padding}${decoration}\nheight: double.infinity,\nchild: ${makeRowOrColumn(
-                node,
-                children
+            return `Container(${indentString(
+                `${padding}${decoration}\nheight: double.infinity,\nchild: ${makeRowOrColumn(node, children)}`
             )}\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'WRAP_CONTENT') {
-            return `Expanded(\nchild: Container(${padding}${decoration}\nchild: ${makeRowOrColumn(
-                node,
-                children
-            )}\n)\n),`;
+            const container = `Container(${indentString(
+                `${padding}${decoration}\nchild: ${makeRowOrColumn(node, children)}`
+            )}\n)`;
+            return `Expanded(\n${indentString(`child: ${container}`)}\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}${decoration}\nheight: double.infinity,\nchild: ${makeRowOrColumn(
-                node,
-                children
-            )}\n)\n),`;
+            const container = `Container(${indentString(
+                `${padding}${decoration}\nheight: double.infinity,\nchild: ${makeRowOrColumn(node, children)}`
+            )}\n)`;
+            return `Expanded(\n${indentString(`child: ${container}`)}\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'FIXED') {
-            return `Expanded(\nchild: Container(${padding}${decoration}\nheight: ${getHeightRatioParent(
-                node,
-                parentScreen
-            )},\nchild: ${makeRowOrColumn(node, children)}\n)\n),`;
+            const container = `Container(${indentString(
+                `${padding}${decoration}\nheight: ${getHeightRatioParent(
+                    node,
+                    parentScreen
+                )},\nchild: ${makeRowOrColumn(node, children)}`
+            )}\n)`;
+            return `Expanded(\n${indentString(`child: ${container}`)}\n),`;
         } else if (widthMode === 'FIXED' && heightMode === 'MATCH_PARENT') {
-            return `Container(${padding}${decoration}\nheight: double.infinity, \nwidth: ${getWidthRatioParent(
-                node,
-                parentScreen
-            )},\nchild: ${makeRowOrColumn(node, children)}\n),`;
+            return `Container(${indentString(
+                `${padding}${decoration}\nheight: double.infinity, \nwidth: ${getWidthRatioParent(
+                    node,
+                    parentScreen
+                )},\nchild: ${makeRowOrColumn(node, children)}`
+            )}\n),`;
         }
     }
 
@@ -467,12 +511,26 @@ export const makeRowOrColumn = (node: FrameNode | InstanceNode | ComponentNode, 
         crossAxisAlignment +
         `\nchildren:<Widget>[\n${indentString(children, 1)}\n],`;
 
-    return `${rowOrColumn}(${indentString(properties, 1)}\n),`;
+    //return `${rowOrColumn}(${indentString(properties, 1)}\n),`;
+    const result = `${rowOrColumn}(${indentString(properties, 1)}\n),`;
+    // Wrap children in listview if frame needs to be scrollable
+    if (node.overflowDirection !== 'NONE') {
+        // Only vertical and horizontal scroll supported
+        const children = `children: [\n${indentString(result)}\n]`;
+        if (node.overflowDirection === 'VERTICAL') {
+            return `ListView(\n${indentString(`scrollDirection: Axis.vertical,\n${children}`)}\n),`;
+        } else if (node.overflowDirection === 'HORIZONTAL') {
+            return `ListView(\n${indentString(`scrollDirection: Axis.horizontal,\n${children}`)}\n),`;
+        }
+    }
+
+    return result;
 };
 
 const flutterText = (node: TextNode): string => {
     const textComp = makeTextComponent(node);
-    return `FittedBox(\nfit: BoxFit.scaleDown,\nchild: ${textComp}\n),`;
+    const fittedBox = `FittedBox(\n${indentString(`fit: BoxFit.scaleDown,\nchild: ${textComp}`)}\n),`;
+    return `Flexible(\n${indentString(`child: ${fittedBox}`)}\n),`;
 };
 
 // Aplicable for auto layout frames

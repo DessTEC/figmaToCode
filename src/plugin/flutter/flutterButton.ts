@@ -5,6 +5,7 @@ import {
     flutterBoxShadow,
     flutterPadding,
     getScreenParent,
+    indentString,
     widthScreen,
     wrapInteractiveComponent,
 } from './utils';
@@ -23,7 +24,9 @@ export const flutterButton = (node: InstanceNode | ComponentNode): string => {
     let children = '';
     if (textNode !== null && textNode.visible) {
         const textStyle = makeTextStyleComponent(textNode);
-        children = `Text(\nr"${textNode.characters}",\noverflow: TextOverflow.clip,\nsoftWrap: false,${textStyle}\n),`;
+        children = `Text(\n${indentString(
+            `r"${textNode.characters}",\noverflow: TextOverflow.clip,\nsoftWrap: false,${textStyle}`
+        )}\n),`;
 
         if (icon !== '') {
             //Button with text and icon --------------------
@@ -31,8 +34,8 @@ export const flutterButton = (node: InstanceNode | ComponentNode): string => {
 
             const parentScreen = getScreenParent(node);
             const ratio = node.itemSpacing / parentScreen.width;
-            //Wrap text in expanded to avoid overflow issues, also added overflow behaviour on text
-            children = `Expanded(\nchild: ${children}\n),`;
+            //Wrap text in flexible to avoid overflow issues, also added overflow behaviour on text
+            children = `Flexible(\n${indentString(`child: ${children}`)}\n),`;
             //Icon - Space - Text
             if (node.children[0].type === 'VECTOR') {
                 children = `${icon}\nSizedBox(width: ${widthScreen}*${ratio.toFixed(2)}),\n${children}`;
@@ -58,7 +61,6 @@ export const flutterButton = (node: InstanceNode | ComponentNode): string => {
         children = `\nchild: ${children}`;
     }
 
-    //TODO: Icon button does not support background color
     let buttonStyle = '';
     if (typeButton !== 'icon') {
         buttonStyle = makeElevatedButtonStyleComponent(node);
@@ -74,9 +76,9 @@ export const flutterButton = (node: InstanceNode | ComponentNode): string => {
 
     let buttonComponent = '';
     if (typeButton === 'icon') {
-        buttonComponent = `IconButton(${properties}\n),`;
+        buttonComponent = `IconButton(${indentString(properties)}\n),`;
     } else {
-        buttonComponent = `ElevatedButton(${properties}\n),`;
+        buttonComponent = `ElevatedButton(${indentString(properties)}\n),`;
     }
 
     if (typeButton === 'icon') {
@@ -86,7 +88,8 @@ export const flutterButton = (node: InstanceNode | ComponentNode): string => {
     const shadow = flutterBoxShadow(node);
     if (shadow !== '' && typeButton !== 'icon') {
         const borderRadius = flutterBorderRadius(node);
-        buttonComponent = `Container(\ndecoration: BoxDecoration(${borderRadius}${shadow}\n),\nchild: \n${buttonComponent}\n),`;
+        const decoration = `BoxDecoration(${indentString(`${borderRadius}${shadow}`)}\n),`;
+        buttonComponent = `Container(\n${indentString(`decoration: ${decoration}\nchild: ${buttonComponent}`)}\n),`;
     }
 
     return wrapInteractiveComponent(width, height, layoutMode, buttonComponent, node);

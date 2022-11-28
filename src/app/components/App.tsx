@@ -5,6 +5,14 @@ declare function require(path: string): any;
 
 const App = ({}) => {
     const [code, setCode] = React.useState('');
+    const [copySuccess, setCopySuccess] = React.useState('');
+    const codeAreaRef = React.useRef(null);
+
+    function copyToClipboard(e) {
+        codeAreaRef.current.select();
+        document.execCommand('copy');
+        setCopySuccess('Copied!');
+    }
 
     const onCreate = () => {
         parent.postMessage({pluginMessage: {type: 'convertFlutter'}}, '*');
@@ -32,10 +40,13 @@ const App = ({}) => {
                 Create
             </button>
             <button onClick={onCancel}>Cancel</button>
+            <button onClick={() => document.execCommand('copy', true, 'Haaa')}>Copy</button>
 
             <p>Code: </p>
             <pre>
-                <code className="language-dart">{code}</code>
+                <code className="language-dart" ref={codeAreaRef}>
+                    {code}
+                </code>
             </pre>
         </div>
     );

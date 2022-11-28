@@ -50,7 +50,7 @@ export const getFlutterColor = (fill: any): string => {
 };
 
 export const numToAutoFixed = (num: number): string => {
-    return num.toFixed(2).replace(/\.00$/, '');
+    return num.toFixed(3).replace(/\.00$/, '');
 };
 
 export const commonLetterSpacing = (node: TextNode): number => {
@@ -200,20 +200,20 @@ export const flutterBorder = (node: any): string => {
     }
     const propStrokeColor = getFlutterColor(node.strokes[0]);
 
-    const borderLeft = `\nleft: BorderSide(\ncolor: Color(${propStrokeColor}),\nwidth: ${numToAutoFixed(
-        node.strokeLeftWeight
+    const borderLeft = `\nleft: BorderSide(\n${indentString(
+        `color: Color(${propStrokeColor}),\nwidth: ${numToAutoFixed(node.strokeLeftWeight)}`
     )}\n),`;
-    const borderRight = `\nright: BorderSide(\ncolor: Color(${propStrokeColor}),\nwidth: ${numToAutoFixed(
-        node.strokeRightWeight
+    const borderRight = `\nright: BorderSide(\n${indentString(
+        `color: Color(${propStrokeColor}),\nwidth: ${numToAutoFixed(node.strokeRightWeight)}`
     )}\n),`;
-    const borderTop = `\ntop: BorderSide(\ncolor: Color(${propStrokeColor}),\nwidth: ${numToAutoFixed(
-        node.strokeTopWeight
+    const borderTop = `\ntop: BorderSide(\n${indentString(
+        `color: Color(${propStrokeColor}),\nwidth: ${numToAutoFixed(node.strokeTopWeight)}`
     )}\n),`;
-    const borderBottom = `\nbottom: BorderSide(\ncolor: Color(${propStrokeColor}),\nwidth: ${numToAutoFixed(
-        node.strokeBottomWeight
+    const borderBottom = `\nbottom: BorderSide(\n${indentString(
+        `color: Color(${propStrokeColor}),\nwidth: ${numToAutoFixed(node.strokeBottomWeight)}`
     )}\n),`;
 
-    return `\nborder: Border(${borderLeft}${borderRight}${borderTop}${borderBottom}\n),`;
+    return `\nborder: Border(${indentString(`${borderLeft}${borderRight}${borderTop}${borderBottom}`)}\n),`;
 };
 
 export const flutterBoxShadow = (node: any): string => {
@@ -270,16 +270,16 @@ export const heightScreen = 'MediaQuery.of(context).size.height';
 
 export const getWidthRatioParent = (childNode: SceneNode, parentNode: SceneNode): string => {
     const ratio = childNode.width / parentNode.width;
-    return `${widthScreen}*${ratio.toFixed(2)}`;
+    return `${widthScreen}*${ratio.toFixed(3)}`;
 };
 
 export const getHeightRatioParent = (childNode: SceneNode, parentNode: SceneNode): string => {
     const ratio = childNode.height / parentNode.height;
-    return `${heightScreen}*${ratio.toFixed(2)}`;
+    return `${heightScreen}*${ratio.toFixed(3)}`;
 };
 
 export const getVerticalSpacingScreen = (nodeYpos: number, nextYpos: number): string => {
-    const spacing = (nextYpos - nodeYpos).toFixed(2);
+    const spacing = (nextYpos - nodeYpos).toFixed(3);
     return `SizedBox(height: ${spacing}),`;
 };
 
@@ -305,67 +305,94 @@ export const wrapInteractiveComponent = (
     const parentScreen = getScreenParent(node);
     const padding = flutterPadding(node);
 
-    console.log(widthMode);
-    console.log(heightMode);
-    console.log(layoutMode);
+    // Make layout taking into account primary axis of parent node
+    const parent = node.parent as FrameNode;
+    const parentMode = parent.layoutMode;
+
+    // Verify if properties need to be swaped because mismatch in layout mode
+    // between parent and child
+    // This will change layoutGrow value to layoutAlign equivalent and viceversa
+    if (parentMode !== layoutMode) {
+        if (layoutMode === 'VERTICAL') {
+            layoutMode = 'HORIZONTAL';
+        } else {
+            layoutMode = 'VERTICAL';
+        }
+    }
 
     //LAYOUTS INDEPENDENT OF LAYOUTMODE
     if (widthMode === 'WRAP_CONTENT' && heightMode === 'WRAP_CONTENT') {
-        return `Container(${padding}\nchild: ${interactiveComponent}\n),`;
+        return `Container(${indentString(`${padding}\nchild: ${interactiveComponent}`)}\n),`;
     } else if (widthMode === 'FIXED' && heightMode === 'FIXED') {
-        return `Container(${padding}\nwidth: ${getWidthRatioParent(
-            node,
-            parentScreen
-        )},\nheight: ${getHeightRatioParent(node, parentScreen)},\nchild: ${interactiveComponent}\n),`;
+        return `Container(${indentString(
+            `${padding}\nwidth: ${getWidthRatioParent(node, parentScreen)},\nheight: ${getHeightRatioParent(
+                node,
+                parentScreen
+            )},\nchild: ${interactiveComponent}`
+        )}\n),`;
     } else if (widthMode === 'WRAP_CONTENT' && heightMode === 'FIXED') {
-        return `Container(${padding}\nheight: ${getHeightRatioParent(
-            node,
-            parentScreen
-        )},\nchild: ${interactiveComponent}\n),`;
+        return `Container(${indentString(
+            `${padding}\nheight: ${getHeightRatioParent(node, parentScreen)},\nchild: ${interactiveComponent}`
+        )}\n),`;
     } else if (widthMode === 'FIXED' && heightMode === 'WRAP_CONTENT') {
-        return `Container(${padding}\nwidth: ${getWidthRatioParent(
-            node,
-            parentScreen
-        )},\nchild: ${interactiveComponent}\n),`;
+        return `Container(${indentString(
+            `${padding}\nwidth: ${getWidthRatioParent(node, parentScreen)},\nchild: ${interactiveComponent}`
+        )}\n),`;
     }
 
     //VERTICAL LAYOUT
     if (layoutMode === 'VERTICAL') {
         if (widthMode === 'MATCH_PARENT' && heightMode === 'WRAP_CONTENT') {
-            return `Container(${padding}\nwidth: double.infinity,\nchild: ${interactiveComponent}\n),`;
+            return `Container(${indentString(
+                `${padding}\nwidth: double.infinity,\nchild: ${interactiveComponent}`
+            )}\n),`;
         } else if (widthMode === 'WRAP_CONTENT' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}\nchild: ${interactiveComponent})\n),`;
+            const container = `Container(${indentString(`${padding}\nchild: ${interactiveComponent}`)}\n),`;
+            return `Expanded(\n${indentString(`child: ${container}`)}\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}\nwidth: double.infinity,\nchild: ${interactiveComponent})\n),`;
+            const container = `Container(${indentString(
+                `${padding}\nwidth: double.infinity,\nchild: ${interactiveComponent}`
+            )}\n),`;
+            return `Expanded(\n${indentString(`child: ${container}`)}\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'FIXED') {
-            return `Container(${padding}\nwidth: double.infinity,\nheight: ${getHeightRatioParent(
-                node,
-                parentScreen
-            )},\nchild: ${interactiveComponent}\n),`;
+            return `Container(${indentString(
+                `${padding}\nwidth: double.infinity,\nheight: ${getHeightRatioParent(
+                    node,
+                    parentScreen
+                )},\nchild: ${interactiveComponent}`
+            )}\n),`;
         } else if (widthMode === 'FIXED' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}\nwidth: ${getWidthRatioParent(
-                node,
-                parentScreen
-            )},\nchild: ${interactiveComponent})\n),`;
+            const container = `Container(${indentString(
+                `${padding}\nwidth: ${getWidthRatioParent(node, parentScreen)},\nchild: ${interactiveComponent}`
+            )}\n),`;
+            return `Expanded(\n${indentString(`child: ${container}`)}\n),`;
         }
     } else {
         //HORIZONTAL LAYOUT
         if (widthMode === 'WRAP_CONTENT' && heightMode === 'MATCH_PARENT') {
-            return `Container(${padding}\nheight: double.infinity,\nchild: ${interactiveComponent}\n),`;
+            return `Container(${indentString(
+                `${padding}\nheight: double.infinity,\nchild: ${interactiveComponent}`
+            )}\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'WRAP_CONTENT') {
-            return `Expanded(\nchild: Container(${padding}\nchild: ${interactiveComponent})\n),`;
+            const container = `Container(${indentString(`${padding}\nchild: ${interactiveComponent}`)}\n),`;
+            return `Expanded(\n${indentString(`child: ${container}`)}\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'MATCH_PARENT') {
-            return `Expanded(\nchild: Container(${padding}\nheight: double.infinity,\nchild: ${interactiveComponent})\n),`;
+            const container = `Container(${indentString(
+                `${padding}\nheight: double.infinity,\nchild: ${interactiveComponent}`
+            )}\n),`;
+            return `Expanded(\n${indentString(`child: ${container}`)}\n),`;
         } else if (widthMode === 'MATCH_PARENT' && heightMode === 'FIXED') {
-            return `Expanded(\nchild: Container(${padding}\nheight: ${getHeightRatioParent(
-                node,
-                parentScreen
-            )},\nchild: ${interactiveComponent})\n),`;
+            const container = `Container(${indentString(
+                `${padding}\nheight: ${getHeightRatioParent(node, parentScreen)},\nchild: ${interactiveComponent}`
+            )}\n),`;
+            return `Expanded(\n${indentString(`child: ${container}`)}\n),`;
         } else if (widthMode === 'FIXED' && heightMode === 'MATCH_PARENT') {
-            return `Container(${padding}\nheight: double.infinity, \nwidth: ${getWidthRatioParent(
-                node,
-                parentScreen
-            )},\nchild: ${interactiveComponent}\n),`;
+            return `Container(${indentString(
+                `${padding}\nheight: double.infinity, \nwidth: ${getWidthRatioParent(
+                    node,
+                    parentScreen
+                )},\nchild: ${interactiveComponent}`
+            )}\n),`;
         }
     }
 
@@ -405,9 +432,13 @@ export const alignmentWidget = (node: any, child: string): string => {
     const rowOrColumn = node.layoutMode === 'HORIZONTAL' ? 'Row' : 'Column';
 
     if (rowOrColumn === 'Row') {
-        return `Align(\nalignment: Alignment(${mainAlignType}, ${crossAlignType}),\nchild: ${child}\n),`;
+        return `Align(\n${indentString(
+            `alignment: Alignment(${mainAlignType}, ${crossAlignType}),\nchild: ${child}`
+        )}\n),`;
     } else {
-        return `Align(\nalignment: Alignment(${crossAlignType}, ${mainAlignType}),\nchild: ${child}\n),`;
+        return `Align(\n${indentString(
+            `alignment: Alignment(${crossAlignType}, ${mainAlignType}),\nchild: ${child}`
+        )}\n),`;
     }
 };
 
@@ -427,13 +458,17 @@ export const makeContainerWithStyle = (node: any, child: string): string => {
     const propertiesDecoration = backgroundColor + borderRadius + border + propShape + shadow;
 
     if (child !== null && child != '') {
-        return `Container(${propertiesContainer}\ndecoration: BoxDecoration(${propertiesDecoration}\n),\nchild: ${child}\n),`;
+        const decoration = `BoxDecoration(${indentString(`${propertiesDecoration}`)}\n),`;
+        return `Container(${indentString(`${propertiesContainer}\ndecoration: ${decoration}\nchild: ${child}`)}\n),`;
     } else {
         // When container does not have child, add a fixed size
         const parentScreen = getScreenParent(node);
-        return `Container(\nwidth: ${getWidthRatioParent(node, parentScreen)},\nheight: ${getHeightRatioParent(
-            node,
-            parentScreen
-        )},${propertiesContainer}\ndecoration: BoxDecoration(${propertiesDecoration}\n)\n),`;
+        const width = getWidthRatioParent(node, parentScreen);
+        const height = getHeightRatioParent(node, parentScreen);
+        const decoration = `BoxDecoration(${indentString(`${propertiesDecoration}`)}\n),`;
+
+        return `Container(\n${indentString(
+            `width: ${width},\nheight: ${height},${propertiesContainer}\ndecoration: ${decoration}`
+        )}\n),`;
     }
 };

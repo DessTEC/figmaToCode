@@ -40,7 +40,8 @@ export const flutterTextField = (node: InstanceNode | ComponentNode): string => 
 
     const shadow = flutterBoxShadow(inputBoxNode);
     if (shadow !== '') {
-        textFieldWidget = `Container(\ndecoration: BoxDecoration(${shadow}\n),\nchild: ${textFieldWidget}\n),`;
+        const decoration = `BoxDecoration(${indentString(shadow)}\n),`;
+        textFieldWidget = `Container(\n${indentString(`decoration: ${decoration}\nchild: ${textFieldWidget}`)}\n),`;
     }
 
     const {width, height, layoutMode} = getLayoutType(node);
@@ -48,11 +49,12 @@ export const flutterTextField = (node: InstanceNode | ComponentNode): string => 
     // If there is a label above the input box
     if (labelNode !== null && labelNode.visible) {
         const labelStyle = makeTextStyleComponent(labelNode);
-        const textLabelWidget = `Text(\nr"${labelNode.characters}",${labelStyle}\n),`;
+        const textLabelWidget = `Text(\n${indentString(`r"${labelNode.characters}",${labelStyle}`)}\n),`;
 
-        const wrapperTextField = `Expanded(\nchild: ${textFieldWidget})`;
+        const wrapperTextField = `Expanded(\n${indentString(`child: ${textFieldWidget}`)}\n),`;
 
-        textFieldWidget = `Column(\ncrossAxisAlignment: CrossAxisAlignment.start, \nchildren: <Widget>[\n${textLabelWidget}\n${wrapperTextField}]\n),`;
+        const children = `children: <Widget>[\n${indentString(`${textLabelWidget}\n${wrapperTextField}`)}\n]`;
+        textFieldWidget = `Column(\n${indentString(`crossAxisAlignment: CrossAxisAlignment.start,\n${children}`)}\n),`;
         //return column with text and texfield
     }
 

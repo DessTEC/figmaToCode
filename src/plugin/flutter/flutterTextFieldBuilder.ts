@@ -20,7 +20,7 @@ export const makeInputDecorationComponent = (node: any, hintText: string, hintSt
     const borderSide = flutterBorderSide(node);
     const borderRadius = flutterBorderRadius(node);
 
-    const outlineBorder = `\nborder: OutlineInputBorder(${borderSide}${borderRadius}\n),`;
+    const outlineBorder = `\nborder: OutlineInputBorder(${indentString(`${borderSide}${borderRadius}`)}\n),`;
     const backgroundColor = flutterInputBackgroundColor(node);
     const hint = `\nhintText: "${hintText}",`;
     const padding = `\ncontentPadding: EdgeInsets.fromLTRB(${node.paddingLeft}, ${node.paddingTop}, ${node.paddingRight}, ${node.paddingBottom}),`;
