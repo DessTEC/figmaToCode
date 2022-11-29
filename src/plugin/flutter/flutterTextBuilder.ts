@@ -15,9 +15,6 @@ export const makeTextComponent = (node: TextNode): string => {
     } else if (node.textCase === 'UPPER') {
         text = text.toUpperCase();
     }
-    // else if (node.textCase === "TITLE") {
-    // TODO this
-    // }
 
     const textStyle = getTextStyle(node);
 

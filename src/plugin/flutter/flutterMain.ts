@@ -547,11 +547,11 @@ const addSpacingIfNeeded = (node: SceneNode): string => {
         if (node.parent.itemSpacing > 0) {
             if (node.parent.layoutMode === 'HORIZONTAL') {
                 const ratio = node.parent.itemSpacing / parentScreen.width;
-                return `\nSizedBox(width: ${widthScreen}*${ratio.toFixed(2)}),`;
+                return `\nSizedBox(width: ${widthScreen}*${ratio.toFixed(3)}),`;
             } else {
                 // node.parent.layoutMode === "VERTICAL"
                 const ratio = node.parent.itemSpacing / parentScreen.height;
-                return `\nSizedBox(height: ${heightScreen}*${ratio.toFixed(2)}),`;
+                return `\nSizedBox(height: ${heightScreen}*${ratio.toFixed(3)}),`;
             }
         }
     }

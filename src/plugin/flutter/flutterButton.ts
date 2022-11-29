@@ -24,8 +24,15 @@ export const flutterButton = (node: InstanceNode | ComponentNode): string => {
     let children = '';
     if (textNode !== null && textNode.visible) {
         const textStyle = makeTextStyleComponent(textNode);
+        let text = textNode.characters;
+        if (textNode.textCase === 'LOWER') {
+            text = text.toLowerCase();
+        } else if (textNode.textCase === 'UPPER') {
+            text = text.toUpperCase();
+        }
+
         children = `Text(\n${indentString(
-            `r"${textNode.characters}",\noverflow: TextOverflow.clip,\nsoftWrap: false,${textStyle}`
+            `r"${text}",\noverflow: TextOverflow.clip,\nsoftWrap: false,${textStyle}`
         )}\n),`;
 
         if (icon !== '') {
@@ -38,10 +45,10 @@ export const flutterButton = (node: InstanceNode | ComponentNode): string => {
             children = `Flexible(\n${indentString(`child: ${children}`)}\n),`;
             //Icon - Space - Text
             if (node.children[0].type === 'VECTOR') {
-                children = `${icon}\nSizedBox(width: ${widthScreen}*${ratio.toFixed(2)}),\n${children}`;
+                children = `${icon}\nSizedBox(width: ${widthScreen}*${ratio.toFixed(3)}),\n${children}`;
             } else {
                 // Text - Space - Icon
-                children = `${children}\nSizedBox(width: ${widthScreen}*${ratio.toFixed(2)}),\n${icon}`;
+                children = `${children}\nSizedBox(width: ${widthScreen}*${ratio.toFixed(3)}),\n${icon}`;
             }
             children = makeRowOrColumn(node, children);
         } else {

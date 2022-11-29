@@ -1,18 +1,20 @@
 import * as React from 'react';
 import '../styles/ui.css';
+import ClipboardJS from 'clipboard';
+import {copyToClipboard} from 'figx';
+
+new ClipboardJS('.button');
 
 declare function require(path: string): any;
 
 const App = ({}) => {
     const [code, setCode] = React.useState('');
     const [copySuccess, setCopySuccess] = React.useState('');
-    const codeAreaRef = React.useRef(null);
 
-    function copyToClipboard(e) {
-        codeAreaRef.current.select();
-        document.execCommand('copy');
+    const copyCode = (e) => {
+        copyToClipboard(code);
         setCopySuccess('Copied!');
-    }
+    };
 
     const onCreate = () => {
         parent.postMessage({pluginMessage: {type: 'convertFlutter'}}, '*');
@@ -40,11 +42,13 @@ const App = ({}) => {
                 Create
             </button>
             <button onClick={onCancel}>Cancel</button>
-            <button onClick={() => document.execCommand('copy', true, 'Haaa')}>Copy</button>
+            <button onClick={copyCode}>Copy</button>
+
+            {copySuccess}
 
             <p>Code: </p>
             <pre>
-                <code className="language-dart" ref={codeAreaRef}>
+                <code id="codeResult" className="language-dart">
                     {code}
                 </code>
             </pre>
